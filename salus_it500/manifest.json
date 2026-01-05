@@ -1,11 +1,11 @@
 {
   "domain": "salus_it500",
-  "name": "Salus thermostat",
+  "name": "Salus thermostat + water heater",
   "version": "0.0.1",
   "documentation": "https://github.com/ladamczyk-it/salus-it500",
   "issue_tracker": "https://github.com/ladamczyk-it/salus-it500/issues",
   "requirements": [],
-  "dependencies": [],
+  "dependencies": ["climate", "water_heater"],
   "codeowners": ["@ladamczyk-it"],
   "iot_class": "cloud_polling"
 }

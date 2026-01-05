@@ -28,7 +28,7 @@ PLATFORM_SCHEMA = cv.PLATFORM_SCHEMA.extend(
 )
 
 DOMAIN = "salus_it500"
-PLATFORMS = ["climate"]
+PLATFORMS = ["climate", "water_heater"]
 
 class Salus():
     """Salus abstraction."""
