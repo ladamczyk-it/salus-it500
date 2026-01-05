@@ -139,13 +139,16 @@ class SalusWaterHeater(WaterHeaterEntity):
         return self._max_temp
             
 
-    def get_data(self):
-        data = self._get_data()
+    async def get_data(self):
+        try: 
+            data = self._get_data()
 
-        if data['HWmode'] == "1":
-            self._current_operation_mode = STATE_ON
-        else:
-            self._current_operation_mode = STATE_OFF
+            if data['HWmode'] == "1":
+                self._current_operation_mode = STATE_ON
+            else:
+                self._current_operation_mode = STATE_OFF
+        except:
+            _LOGGER.error("Error geting data from the web. Please check the connection to salus-it500.com manually.")   
 
     def update(self):
         """Get the latest data."""

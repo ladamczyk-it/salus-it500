@@ -19,9 +19,6 @@ import homeassistant.helpers.config_validation as cv
 
 __version__ = "0.0.1"
 
-
-_LOGGER = logging.getLogger(__name__)
-
 PLATFORM_SCHEMA = cv.PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_USERNAME): cv.string,
@@ -39,36 +36,36 @@ class Salus():
     def __init__(self, username, password, deviceId):
         self._username = username
         self._password = password
-        self._deviceId = ide
+        self._deviceId = deviceId
         self._token = None
         self._retryCount = 0
         
         self._session = requests.Session()
-            
+         
     def _get_token(self) -> None:
         """Get the Session Token."""
-        payload = {"IDemail": self._username, "password": self._password, "login": "Login", "keep_logged_in": "1"}
         headers = {"content-type": "application/x-www-form-urlencoded"}
+        payload = {"IDemail": self._username, "password": self._password, "login": "Login", "keep_logged_in": "1"}
         
         try:
             self._session.post("https://salus-it500.com/public/login.php", data=payload, headers=headers)
-            params = {"devId": self._deviceId}
+            
+            params={"devId": self._deviceId}
             getToken = self._session.get("https://salus-it500.com/public/control.php", params=params)
+            
             result = re.search('<input id="token" type="hidden" value="(.*)" />', getToken.text)
-            _LOGGER.info("Token obtained")
+            
             self._token = result.group(1)
             self._retryCount = 0
         except:
             self._retryCount = self._retryCount + 1
 
             if self._retryCount < 11:
-                time.sleep(1)
-                return self._get_token()
+                self._get_token()
             else:
-                _LOGGER.error("Error geting session token.")
+                raise Exception("Error geting session token.")
 
     def _get_data(self) -> object:
-        """Fetch token if not present."""
         if self._token is None:
             self._get_token()
 
@@ -82,32 +79,39 @@ class Salus():
                     self._retryCount = 0
                     return json.loads(r.text)
                 else:
-                    _LOGGER.error("Could not get data from Salus.")
+                    raise Exception("Could not get data from Salus.")
 
             except:
                 self._token = None
                 self._retryCount = self._retryCount + 1
 
                 if self._retryCount < 11:
-                    time.sleep(1)
                     return self._get_data()
                 else:
-                    _LOGGER.error("Error geting data from the web. Please check the connection to salus-it500.com manually.")
+                    raise Exception("Error geting data from the web. Please check the connection to salus-it500.com manually.")
         except:
             self._retryCount = self._retryCount + 1
 
             if self._retryCount < 11:
-                time.sleep(1)
                 return self._get_data()
             else:
-                _LOGGER.error("Error geting data from the web. Please check the connection to salus-it500.com manually.")
+                raise Exception("Error geting data from the web. Please check the connection to salus-it500.com manually.")
 
-    def _set_data(self, data) -> bool:        
+    def _set_data(self, data) -> bool:
+        if self._token is None:
+            self._get_token()
+
         headers = {"content-type": "application/x-www-form-urlencoded"}
         payload = {"token": self._token, "devId": self._id, **data}
 
         try:
-            if self._session.post("https://salus-it500.com/includes/set.php", data=payload, headers=headers):
-                return true
+            self._session.post("https://salus-it500.com/includes/set.php", data=payload, headers=headers)
+            self._retryCount = 0
         except:
-            return false
+            self._token = None
+            self._retryCount = self._retryCount + 1
+
+            if self._retryCount < 11:
+                return self._set_data(data)
+            else:
+                raise Exception("Error while pushing config.")
