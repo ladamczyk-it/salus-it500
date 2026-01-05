@@ -59,7 +59,7 @@ class SalusWaterHeater(WaterHeaterEntity):
 
     def __init__(self, name, username, password, id):
         """Initialize the water heater."""
-        super(username, password, deviceId)
+        super(SalusWaterHeater, self).__init__(username, password, deviceId)
 
         self._name = name
         self._current_operation = STATE_ON

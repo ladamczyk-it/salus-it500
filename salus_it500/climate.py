@@ -69,7 +69,7 @@ class SalusThermostat(ClimateEntity, Salus):
 
     def __init__(self, name, username, password, deviceId):
         """Initialize the thermostat."""
-        super(username, password, deviceId)
+        super(SalusThermostat, self).__init__(username, password, deviceId)
 
         self._name = name
         self._current_temperature = None
