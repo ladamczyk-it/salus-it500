@@ -90,6 +90,7 @@ class Salus():
                 else:
                     raise Exception("Error geting data from the web. Please check the connection to salus-it500.com manually.")
         except:
+            self._token = None
             self._retryCount = self._retryCount + 1
 
             if self._retryCount < 11:

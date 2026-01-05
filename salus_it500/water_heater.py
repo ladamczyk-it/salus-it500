@@ -54,10 +54,10 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     )
 
 
-class SalusWaterHeater(WaterHeaterEntity):
+class SalusWaterHeater(WaterHeaterEntity, Salus):
     """Representation of a Salus water heater device."""
 
-    def __init__(self, name, username, password, id):
+    def __init__(self, name, username, password, deviceId):
         """Initialize the water heater."""
         super(SalusWaterHeater, self).__init__(username, password, deviceId)
 
