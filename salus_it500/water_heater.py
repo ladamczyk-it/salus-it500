@@ -50,17 +50,18 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     id = config.get(CONF_ID)
 
     async_add_entities(
-        [SalusWaterHeater(name, username, password, id)]
+        [SalusWaterHeater(hass, name, username, password, id)]
     )
 
 
 class SalusWaterHeater(WaterHeaterEntity, Salus):
     """Representation of a Salus water heater device."""
 
-    def __init__(self, name, username, password, deviceId):
+    def __init__(self, hass, name, username, password, deviceId):
         """Initialize the water heater."""
         super(SalusWaterHeater, self).__init__(username, password, deviceId)
 
+        self._hass = hass
         self._name = name
         self._current_operation = None
         self._operation_list = [
@@ -102,21 +103,23 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
         """Return the list of available operation modes."""
         return self._operation_list
 
-    def turn_on(self) -> None:
-        try: 
-            if self._current_operation != STATE_ON:
+    def set_operation_mode(self, operation_mode: str) -> None:
+        """hwmode_auto=1 to implement later"""
+
+        if operation_mode == STATE_ON and self._current_operation != STATE_ON:
+            try: 
                 self._set_data({"hwmode_once": "1"})
                 self._current_operation = STATE_ON
-        except:
-            _LOGGER.error("Error setting mode ON.")
-
-    def turn_off(self) -> None:
-        try: 
-            if self._current_operation != STATE_OFF:
+            except:
+                _LOGGER.error("Error setting mode ON.")
+        elif (
+            operation_mode == STATE_OFF and self._current_operation != STATE_OFF
+        ):        
+            try: 
                 self._set_data({"hwmode_off": "1"})
                 self._current_operation = STATE_OFF
-        except:
-            _LOGGER.error("Error setting mode OFF.")
+            except:
+                _LOGGER.error("Error setting mode OFF.")
 
     @property
     def temperature_unit(self):
@@ -139,10 +142,9 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
             self._max_temp = TemperatureConverter.convert(DEFAULT_MAX_TEMP, UnitOfTemperature.FAHRENHEIT, self._unit_of_measurement) 
         return self._max_temp
             
-
     async def get_data(self):
         try: 
-            data = self._get_data()
+            data = await self._hass.async_add_executor_job(self._get_data)
 
             if data['HWonOffStatus'] == "1":
                 self._current_operation = STATE_ON
@@ -151,7 +153,7 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
         except:
             _LOGGER.error("Error geting data from the web. Please check the connection to salus-it500.com manually.")   
 
-    def update(self):
+    async def async_update(self) -> None:
         """Get the latest data."""
-        self.get_data()
+        await self.get_data()
 

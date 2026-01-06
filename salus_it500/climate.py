@@ -61,16 +61,17 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     id = config.get(CONF_ID)
 
     async_add_entities(
-        [SalusThermostat(name, username, password, id)]
+        [SalusThermostat(hass, name, username, password, id)]
     )
 
 class SalusThermostat(ClimateEntity, Salus):
     """Representation of a Salus Thermostat device."""
 
-    def __init__(self, name, username, password, deviceId):
+    def __init__(self, hass, name, username, password, deviceId):
         """Initialize the thermostat."""
         super(SalusThermostat, self).__init__(username, password, deviceId)
 
+        self._hass = hass
         self._name = name
         self._current_temperature = None
         self._status = None
@@ -148,9 +149,9 @@ class SalusThermostat(ClimateEntity, Salus):
             else:
                 _LOGGER.error("Error Setting HVAC mode ON.")
 
-    def get_data(self):
+    async def get_data(self):
         try: 
-            data = self._get_data()
+            data = await self._hass.async_add_executor_job(self._get_data)
 
             self._current_temperature = float(data["CH1currentRoomTemp"])
                         
@@ -166,7 +167,7 @@ class SalusThermostat(ClimateEntity, Salus):
         except:
             _LOGGER.error("Error geting data from the web. Please check the connection to salus-it500.com manually.")
 
-    def update(self):
+    async def async_update(self) -> None:
         """Get the latest data."""
-        self.get_data()
+        await self.get_data()
 
