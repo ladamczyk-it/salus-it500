@@ -1,0 +1,8 @@
+# Describes the format for available water_heater services
+
+set_operation_mode:
+  description: Set operation mode for water_heater device.
+  fields:
+    operation_mode:
+      description: New value of operation mode.
+      example: "on"
