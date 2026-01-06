@@ -71,6 +71,7 @@ class SalusThermostat(ClimateEntity, Salus):
         """Initialize the thermostat."""
         super(SalusThermostat, self).__init__(username, password, deviceId)
 
+        self._attr_unique_id=f"salus_it500_{deviceId}_thermostat"
         self._hass = hass
         self._name = name
         self._current_temperature = None

@@ -61,6 +61,7 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
         """Initialize the water heater."""
         super(SalusWaterHeater, self).__init__(username, password, deviceId)
 
+        self._attr_unique_id=f"salus_it500_{deviceId}_water_heater"
         self._hass = hass
         self._name = name
         self._current_operation = None
