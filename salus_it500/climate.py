@@ -33,6 +33,7 @@ except ImportError:
 
 
 from homeassistant.helpers.reload import async_setup_reload_service
+from homeassistant.helpers.device_registry import DeviceInfo
 from salus_it500.common import (
     Salus,
     DOMAIN, 
@@ -78,6 +79,16 @@ class SalusThermostat(ClimateEntity, Salus):
         self._status = None
         self._current_operation_mode = None
     
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device registry information for this entity."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._attr_unique_id)},
+            manufacturer="Salus",
+            model="IT500",
+            name=self.name,
+        )
+
     @property
     def supported_features(self):
         """Return the list of supported features."""
