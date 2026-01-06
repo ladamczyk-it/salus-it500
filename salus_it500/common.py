@@ -5,7 +5,7 @@ import datetime
 import time
 import logging
 import re
-from requests
+import requests
 import json 
 
 from homeassistant.const import (
