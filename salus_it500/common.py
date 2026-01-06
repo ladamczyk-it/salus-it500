@@ -103,7 +103,7 @@ class Salus():
             self._get_token()
 
         headers = {"content-type": "application/x-www-form-urlencoded"}
-        payload = {"token": self._token, "devId": self._id, **data}
+        payload = {"token": self._token, "devId": self._deviceId, **data}
 
         try:
             self._session.post("https://salus-it500.com/includes/set.php", data=payload, headers=headers)

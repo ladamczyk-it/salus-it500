@@ -103,7 +103,8 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
         return self._operation_list
 
     def set_operation_mode(self, operation_mode: str) -> None:
-        """Set new target operation mode."""
+        """hwmode_auto=1 to implement later"""
+
         if operation_mode == STATE_ON and self._current_operation != STATE_ON:
             if self._set_data({"hwmode_once": "1"}):
                 self._current_operation_mode = STATE_ON
@@ -143,7 +144,7 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
         try: 
             data = self._get_data()
 
-            if data['HWmode'] == "1":
+            if data['HWonOffStatus'] == "1":
                 self._current_operation_mode = STATE_ON
             else:
                 self._current_operation_mode = STATE_OFF
