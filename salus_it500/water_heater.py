@@ -74,6 +74,10 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
         self._unit_of_measurement = UnitOfTemperature.CELSIUS
     
     @property
+    def unique_id(self) -> str:
+        return self._attr_unique_id
+
+    @property
     def device_info(self) -> DeviceInfo:
         """Return device registry information for this entity."""
         return DeviceInfo(
@@ -92,11 +96,6 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
     def name(self):
         """Return the name of the thermostat."""
         return self._name
-        
-    @property
-    def unique_id(self) -> str:
-        """Return the unique ID for this thermostat."""
-        return "_".join([self._name, "water_heater"])
 
     @property
     def should_poll(self):

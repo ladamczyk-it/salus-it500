@@ -80,8 +80,11 @@ class SalusThermostat(ClimateEntity, Salus):
         self._current_operation_mode = None
     
     @property
+    def unique_id(self) -> str:
+        return self._attr_unique_id
+
+    @property
     def device_info(self) -> DeviceInfo:
-        """Return device registry information for this entity."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._attr_unique_id)},
             manufacturer="Salus",
@@ -98,11 +101,6 @@ class SalusThermostat(ClimateEntity, Salus):
     def name(self):
         """Return the name of the thermostat."""
         return self._name
-        
-    @property
-    def unique_id(self) -> str:
-        """Return the unique ID for this thermostat."""
-        return "_".join([self._name, "climate"])
 
     @property
     def should_poll(self):
