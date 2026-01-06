@@ -71,7 +71,6 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
         self._min_temp = None
         self._max_temp = None
         self._unit_of_measurement = UnitOfTemperature.CELSIUS
-        self.update()
     
     @property
     def supported_features(self) -> WaterHeaterEntityFeature:

@@ -76,8 +76,6 @@ class SalusThermostat(ClimateEntity, Salus):
         self._current_temperature = None
         self._status = None
         self._current_operation_mode = None
-        
-        self.update()
     
     @property
     def supported_features(self):
