@@ -5,3 +5,5 @@ lib/*
 lib64
 lib64/*
 pyvenv.cfg
+http_cache.sqlite
+*.json

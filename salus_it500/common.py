@@ -6,6 +6,7 @@ import time
 import logging
 import re
 import requests
+from requests_cache import CachedSession
 import json 
 
 from homeassistant.const import (
@@ -30,6 +31,8 @@ PLATFORM_SCHEMA = cv.PLATFORM_SCHEMA.extend(
 DOMAIN = "salus_it500"
 PLATFORMS = ["climate", "water_heater"]
 
+session = CachedSession(expire_after=60)
+
 class Salus():
     """Salus abstraction."""
 
@@ -39,8 +42,6 @@ class Salus():
         self._deviceId = deviceId
         self._token = None
         self._retryCount = 0
-        
-        self._session = requests.Session()
          
     def _get_token(self) -> None:
         """Get the Session Token."""
@@ -48,10 +49,10 @@ class Salus():
         payload = {"IDemail": self._username, "password": self._password, "login": "Login", "keep_logged_in": "1"}
         
         try:
-            self._session.post("https://salus-it500.com/public/login.php", data=payload, headers=headers)
+            requests.post("https://salus-it500.com/public/login.php", data=payload, headers=headers)
             
             params={"devId": self._deviceId}
-            getToken = self._session.get("https://salus-it500.com/public/control.php", params=params)
+            getToken = requests.get("https://salus-it500.com/public/control.php", params=params)
             
             result = re.search('<input id="token" type="hidden" value="(.*)" />', getToken.text)
             
@@ -72,7 +73,7 @@ class Salus():
         params = {"devId": self._deviceId, "token": self._token, "&_": str(int(round(time.time() * 1000)))}
         
         try:
-            r = self._session.get("https://salus-it500.com/public/ajax_device_values.php", params = params)
+            r = session.get("https://salus-it500.com/public/ajax_device_values.php", params = params)
             
             try:
                 if r:
@@ -106,7 +107,7 @@ class Salus():
         payload = {"token": self._token, "devId": self._deviceId, **data}
 
         try:
-            self._session.post("https://salus-it500.com/includes/set.php", data=payload, headers=headers)
+            requests.post("https://salus-it500.com/includes/set.php", data=payload, headers=headers)
             self._retryCount = 0
         except:
             self._token = None
