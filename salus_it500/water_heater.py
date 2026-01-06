@@ -62,7 +62,7 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
         super(SalusWaterHeater, self).__init__(username, password, deviceId)
 
         self._name = name
-        self._current_operation = STATE_ON
+        self._current_operation = None
         self._operation_list = [
             STATE_ON,
             STATE_OFF,
@@ -107,14 +107,14 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
 
         if operation_mode == STATE_ON and self._current_operation != STATE_ON:
             if self._set_data({"hwmode_once": "1"}):
-                self._current_operation_mode = STATE_ON
+                self._current_operation = STATE_ON
             else:
                 _LOGGER.error("Error setting mode ON.")
         elif (
             operation_mode == STATE_OFF and self._current_operation != STATE_OFF
         ):        
             if self._set_data({"hwmode_off": "1"}):
-                self._current_operation_mode = STATE_OFF
+                self._current_operation = STATE_OFF
             else:
                 _LOGGER.error("Error setting mode OFF.")
 
@@ -145,9 +145,9 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
             data = self._get_data()
 
             if data['HWonOffStatus'] == "1":
-                self._current_operation_mode = STATE_ON
+                self._current_operation = STATE_ON
             else:
-                self._current_operation_mode = STATE_OFF
+                self._current_operation = STATE_OFF
         except:
             _LOGGER.error("Error geting data from the web. Please check the connection to salus-it500.com manually.")   
 
