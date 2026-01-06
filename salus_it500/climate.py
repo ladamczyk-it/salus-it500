@@ -73,6 +73,7 @@ class SalusThermostat(ClimateEntity, Salus):
         super(SalusThermostat, self).__init__(username, password, deviceId)
 
         self._attr_unique_id=f"salus_it500_{deviceId}_thermostat"
+        self._attr_available = False
         self._hass = hass
         self._name = name
         self._current_temperature = None
@@ -172,6 +173,8 @@ class SalusThermostat(ClimateEntity, Salus):
                 self._current_operation_mode = STATE_OFF
             else:
                 self._current_operation_mode = STATE_ON
+
+            self._attr_available = True
         except:
             _LOGGER.error("Error geting data from the web. Please check the connection to salus-it500.com manually.")
 

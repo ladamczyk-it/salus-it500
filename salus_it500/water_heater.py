@@ -62,6 +62,7 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
         super(SalusWaterHeater, self).__init__(username, password, deviceId)
 
         self._attr_unique_id=f"salus_it500_{deviceId}_water_heater"
+        self._attr_available = False
         self._hass = hass
         self._name = name
         self._current_operation = None
@@ -159,6 +160,8 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
                 self._current_operation = STATE_ON
             else:
                 self._current_operation = STATE_OFF
+
+            self._attr_available = True
         except:
             _LOGGER.error("Error geting data from the web. Please check the connection to salus-it500.com manually.")   
 
