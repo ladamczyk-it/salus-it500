@@ -5,7 +5,7 @@ import datetime
 import time
 import logging
 import re
-from requests_cache import CachedSession
+from requests
 import json 
 
 from homeassistant.const import (
@@ -39,7 +39,8 @@ class Salus():
         self._deviceId = deviceId
         self._token = None
         self._retryCount = 0
-        self._session = CachedSession(DOMAIN, expire_after=10, allowable_methods=("GET"), ignored_parameters=("&_"), stale_if_error=True)
+        # self._session = CachedSession(DOMAIN, expire_after=10, allowable_methods=("GET"), ignored_parameters=("&_"), stale_if_error=True)
+        self._session = requests.Session()
          
     def _get_token(self) -> None:
         """Get the Session Token."""
