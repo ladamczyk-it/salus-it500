@@ -154,14 +154,12 @@ class SalusThermostat(ClimateEntity, Salus):
 
             self._current_temperature = float(data["CH1currentRoomTemp"])
                         
-            status = data['CH1heatOnOffStatus']
-            if status == "1":
+            if data['CH1heatOnOffStatus'] == "1":
                 self._status = "ON"
             else:
                 self._status = "OFF"
 
-            mode = data['CH1heatOnOff']
-            if mode == "1":
+            if data['CH1heatOnOff'] == "1":
                 self._current_operation_mode = STATE_OFF
             else:
                 self._current_operation_mode = STATE_ON
