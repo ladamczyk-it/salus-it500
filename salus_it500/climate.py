@@ -111,6 +111,16 @@ class SalusThermostat(ClimateEntity, Salus):
         return True
 
     @property
+    def min_temp(self):
+        """Return the minimum temperature."""
+        return MIN_TEMP
+
+    @property
+    def max_temp(self):
+        """Return the maximum temperature."""
+        return MAX_TEMP
+
+    @property
     def temperature_unit(self):
         """Return the unit of measurement."""
         return UnitOfTemperature.CELSIUS
@@ -184,7 +194,9 @@ class SalusThermostat(ClimateEntity, Salus):
         try: 
             data = await self._hass.async_add_executor_job(self._get_data)
 
+            self._target_temperature = float(data["CH1currentSetPoint"])
             self._current_temperature = float(data["CH1currentRoomTemp"])
+            self._frost = float(data["frost"])
                         
             if data['CH1heatOnOffStatus'] == "1":
                 self._status = "ON"
