@@ -77,6 +77,8 @@ class SalusThermostat(ClimateEntity, Salus):
         self._hass = hass
         self._name = name
         self._current_temperature = None
+        self._target_temperature = None
+        self._frost = None
         self._status = None
         self._current_operation_mode = None
     
@@ -118,6 +120,10 @@ class SalusThermostat(ClimateEntity, Salus):
         """Return the current temperature."""
         return self._current_temperature
 
+    @property
+    def target_temperature(self):
+        """Return the temperature we try to reach."""
+        return self._target_temperature
 
     @property
     def hvac_mode(self):
@@ -126,7 +132,7 @@ class SalusThermostat(ClimateEntity, Salus):
             curr_hvac_mode = HVACMode.OFF
             
             if self._current_operation_mode == STATE_ON:
-                curr_hvac_mode = HVACMode.AUTO
+                curr_hvac_mode = HVACMode.HEAT
             else:
                 curr_hvac_mode = HVACMode.OFF
         except KeyError:
@@ -136,7 +142,7 @@ class SalusThermostat(ClimateEntity, Salus):
     @property
     def hvac_modes(self):
         """HVAC modes."""
-        return [HVACMode.AUTO, HVACMode.OFF]
+        return [HVACMode.HEAT, HVACMode.OFF]
 
     @property
     def hvac_action(self):
@@ -145,18 +151,34 @@ class SalusThermostat(ClimateEntity, Salus):
             return HVACAction.HEATING
         return HVACAction.IDLE
 
+    def set_temperature(self, **kwargs):
+        """Set new target temperature."""
+        temperature = kwargs.get(ATTR_TEMPERATURE)
+        
+        if temperature is None:
+            return
+
+        try:
+            if self._set_data({"tempUnit": "0", "current_tempZ1_set": "1", "current_tempZ1": temperature}):
+                self._target_temperature = temperature
+        except:
+            _LOGGER.error("Error Setting the temperature.")
+        
+
     def set_hvac_mode(self, hvac_mode):
         """Set HVAC mode, via URL commands."""
         if hvac_mode == HVACMode.OFF:
-            if self._set_data({"auto": "1", "auto_setZ1": "1"}):
-                self._current_operation_mode = STATE_OFF
-            else:
+            try:
+                if self._set_data({"auto": "1", "auto_setZ1": "1"}):
+                    self._current_operation_mode = STATE_OFF
+            except:
                 _LOGGER.error("Error Setting HVAC mode OFF.")
-        elif hvac_mode == HVACMode.AUTO:
-            if self._set_data({"auto": "0", "auto_setZ1": "1"}):
-                self._current_operation_mode = STATE_ON
-            else:
-                _LOGGER.error("Error Setting HVAC mode ON.")
+        elif hvac_mode == HVACMode.HEAT:
+            try:
+                if self._set_data({"auto": "0", "auto_setZ1": "1"}):
+                    self._current_operation_mode = STATE_ON
+            except:
+                _LOGGER.error("Error Setting HVAC mode HEAT.")
 
     async def get_data(self):
         try: 

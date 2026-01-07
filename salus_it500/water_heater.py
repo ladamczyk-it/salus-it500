@@ -113,23 +113,27 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
         """Return the list of available operation modes."""
         return self._operation_list
 
-    def set_operation_mode(self, operation_mode: str) -> None:
-        """hwmode_auto=1 to implement later"""
-
-        if operation_mode == STATE_ON and self._current_operation != STATE_ON:
-            try: 
-                self._set_data({"hwmode_once": "1"})
+    def turn_on(self):
+        try: 
+            if self._set_data({"hwmode_once": "1"}):
                 self._current_operation = STATE_ON
-            except:
-                _LOGGER.error("Error setting mode ON.")
+        except:
+            _LOGGER.error("Error setting mode ON.")
+
+    def turn_off(self):
+        try: 
+            if self._set_data({"hwmode_off": "1"}):
+                self._current_operation = STATE_ON
+        except:
+            _LOGGER.error("Error setting mode OFF.")
+
+    def set_operation_mode(self, operation_mode: str) -> None:
+        if operation_mode == STATE_ON and self._current_operation != STATE_ON:
+            self.turn_on()
         elif (
             operation_mode == STATE_OFF and self._current_operation != STATE_OFF
         ):        
-            try: 
-                self._set_data({"hwmode_off": "1"})
-                self._current_operation = STATE_OFF
-            except:
-                _LOGGER.error("Error setting mode OFF.")
+            self.turn_off()
 
     @property
     def temperature_unit(self):
