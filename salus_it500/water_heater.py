@@ -37,7 +37,8 @@ _LOGGER = logging.getLogger(__name__)
 
 SUPPORT_FLAGS = WaterHeaterEntityFeature.OPERATION_MODE
 
-async def async_setup_platform(hass, hass_config, async_add_entities, discovery_info):    
+# def setup_platform(hass, config, add_entities, discovery_info=None):
+async def async_setup_platform(hass, hass_config, async_add_entities, discovery_info=None):    
     name = "Salus water heater"
 
     username = discovery_info[CONF_USERNAME]

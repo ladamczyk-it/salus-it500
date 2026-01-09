@@ -1,4 +1,6 @@
 """The Salus iT500 component."""
+import logging
+
 import voluptuous as vol
 
 from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
@@ -10,6 +12,8 @@ from homeassistant.const import (
     CONF_USERNAME,
     CONF_ID,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "salus_it500"
 
@@ -29,7 +33,9 @@ CONFIG_SCHEMA = vol.Schema(
 async def async_setup(hass, hass_config):
     """Set up Generic Water Heaters."""
     conf = hass_config.get(DOMAIN)
-    
+
+    _LOGGER.debug(conf[CONF_USERNAME], conf[CONF_PASSWORD], conf[CONF_ID])
+
     hass.async_create_task(
         discovery.async_load_platform(
             hass,
