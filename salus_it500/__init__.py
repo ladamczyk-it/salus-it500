@@ -22,7 +22,8 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Required(CONF_ID): cv.string,
             }
         )
-    }
+    },
+    extra=vol.ALLOW_EXTRA,
 )
 
 async def async_setup(hass, hass_config):
