@@ -8,27 +8,7 @@ import re
 import requests
 import json 
 
-from homeassistant.const import (
-    CONF_PASSWORD,
-    CONF_USERNAME,
-    CONF_ID,
-)
-
-import voluptuous as vol
-import homeassistant.helpers.config_validation as cv
-
 __version__ = "0.0.1"
-
-PLATFORM_SCHEMA = cv.PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_USERNAME): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
-        vol.Required(CONF_ID): cv.string,
-    }
-)
-
-DOMAIN = "salus_it500"
-PLATFORMS = ["climate", "water_heater"]
 
 class Salus():
     """Salus abstraction."""

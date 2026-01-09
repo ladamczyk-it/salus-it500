@@ -35,10 +35,7 @@ except ImportError:
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.device_registry import DeviceInfo
 from salus_it500.common import (
-    Salus,
-    DOMAIN, 
-    PLATFORMS,
-    PLATFORM_SCHEMA
+    Salus
 )
 
 __version__ = "0.0.1"
@@ -53,9 +50,7 @@ MAX_TEMP = 34.5
 SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE
 
 # def setup_platform(hass, config, add_entities, discovery_info=None):
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
-    
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):    
     name = "Salus Thermostat"
     username = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)

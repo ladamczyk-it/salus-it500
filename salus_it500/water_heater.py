@@ -27,10 +27,7 @@ from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.util.unit_conversion import TemperatureConverter
 from homeassistant.helpers.device_registry import DeviceInfo
 from salus_it500.common import (
-    Salus,
-    DOMAIN, 
-    PLATFORMS,
-    PLATFORM_SCHEMA
+    Salus
 )
 
 __version__ = "0.0.1"
@@ -41,9 +38,7 @@ _LOGGER = logging.getLogger(__name__)
 SUPPORT_FLAGS = WaterHeaterEntityFeature.OPERATION_MODE
 
 # def setup_platform(hass, config, add_entities, discovery_info=None):
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
-    
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):    
     name = "Salus water heater"
     username = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)
