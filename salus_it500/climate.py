@@ -53,13 +53,18 @@ SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE
 async def async_setup_platform(hass, hass_config, async_add_entities, discovery_info=None):    
     name = "Salus thermostat"
 
-    username = discovery_info[CONF_USERNAME]
-    password = discovery_info[CONF_PASSWORD]
-    id = discovery_info[CONF_ID]
+    entities = []
 
-    async_add_entities(
-        [SalusThermostat(hass, name, username, password, id)]
-    )
+    for config in discovery_info:
+        username = discovery_info[CONF_USERNAME]
+        password = discovery_info[CONF_PASSWORD]
+        id = discovery_info[CONF_ID]
+
+        entities.append(
+            SalusThermostat(hass, name, username, password, id)
+        )
+
+    async_add_entities(entities)
 
 class SalusThermostat(ClimateEntity, Salus):
     """Representation of a Salus Thermostat device."""
