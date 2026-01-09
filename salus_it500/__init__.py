@@ -34,7 +34,7 @@ async def async_setup(hass, hass_config):
     """Set up Generic Water Heaters."""
     conf = hass_config.get(DOMAIN)
 
-    _LOGGER.debug(conf[CONF_USERNAME], conf[CONF_PASSWORD], conf[CONF_ID])
+    _LOGGER.error(conf[CONF_USERNAME], conf[CONF_PASSWORD], conf[CONF_ID])
 
     hass.async_create_task(
         discovery.async_load_platform(
