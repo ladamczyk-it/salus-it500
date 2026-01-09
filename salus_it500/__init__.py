@@ -28,7 +28,7 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup(hass, hass_config):
     """Set up Generic Water Heaters."""
-    hass_config.get(DOMAIN)
+    conf = hass_config.get(DOMAIN)
     
     hass.async_create_task(
         discovery.async_load_platform(
