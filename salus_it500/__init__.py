@@ -35,7 +35,7 @@ async def async_setup(hass, hass_config):
             hass,
             CLIMATE_DOMAIN,
             DOMAIN,
-            [conf],
+            conf,
             hass_config,
         )
     )
@@ -45,7 +45,7 @@ async def async_setup(hass, hass_config):
             hass,
             WATER_HEATER_DOMAIN,
             DOMAIN,
-            [conf],
+            conf,
             hass_config,
         )
     )
