@@ -121,11 +121,17 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
 
     @property
     def min_temp(self):
-        return self._min_temp = TemperatureConverter.convert(DEFAULT_MIN_TEMP, UnitOfTemperature.FAHRENHEIT, self._unit_of_measurement)
+        if not self._min_temp:
+            self._min_temp = TemperatureConverter.convert(DEFAULT_MIN_TEMP, UnitOfTemperature.FAHRENHEIT, self._unit_of_measurement) 
+
+        return self._min_temp
 
     @property
     def max_temp(self):
-        return self._max_temp = TemperatureConverter.convert(DEFAULT_MAX_TEMP, UnitOfTemperature.FAHRENHEIT, self._unit_of_measurement) 
+        if not self._max_temp:
+            self._max_temp = TemperatureConverter.convert(DEFAULT_MAX_TEMP, UnitOfTemperature.FAHRENHEIT, self._unit_of_measurement) 
+            
+        return self._max_temp
             
     async def get_data(self):
         try: 
