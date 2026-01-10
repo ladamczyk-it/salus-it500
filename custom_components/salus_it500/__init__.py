@@ -39,7 +39,7 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup(hass, hass_config):
     """Set up Generic Water Heaters."""
-    conf = hass_config.get(DOMAIN)
+    config = hass_config.get(DOMAIN)
 
     if CLIMATE_DOMAIN in config[PLATFORMS]:
         hass.async_create_task(
@@ -47,7 +47,7 @@ async def async_setup(hass, hass_config):
                 hass,
                 CLIMATE_DOMAIN,
                 DOMAIN,
-                conf,
+                config,
                 hass_config,
             )
         )
@@ -58,7 +58,7 @@ async def async_setup(hass, hass_config):
                 hass,
                 WATER_HEATER_DOMAIN,
                 DOMAIN,
-                conf,
+                config,
                 hass_config,
             )
         )
