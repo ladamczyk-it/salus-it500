@@ -1,43 +1,24 @@
-# Home-Assistant Custom Components
-Custom Components for Home-Assistant (http://www.home-assistant.io)
+# Home Assistant custom integration for Salus iT500
+Since I've didn't find anything that will support my current home thermostat and setup (thermostat + water heater), based on [salusfy](https://github.com/floringhimie/salusfy) and couple of other inspirations (since I'm python newbie) I've created this custom component.
 
-# Salus Thermostat Climate Component
-My device is RT301i, it is working with it500 thermostat, the ideea is simple if you have a Salus Thermostat and you are able to login to salus-it500.com and controll it from this page, this custom component should work.
-Component to interface with the salus-it500.com.
-It reads the Current Temperature, Set Temperature, Current HVAC Mode, Current Relay Mode.
-
-Keep in mind this is my first custom component and this is also the first version of this Salusfy so it can have bugs. Sorry for that.
-
-**** This is not an official integration.
 ### Installation
-* If not exist, in config/custom_components/ create a directory called salusfy 
-* Copy all files in salusfy to your config/custom_components/salusfy/ directory.
-* Configure with config below.
-* Restart Home-Assistant.
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ladamczyk-it&repository=https%3A%2F%2Fgithub.com%2Fladamczyk-it%2Fsalus-it500&category=climate%2C+water_heater)
+
+or manually copy contents of `custom_components/salus_it500` into `config/custom_components/salus_it500`
 
 ### Usage
-To use this component in your installation, add the following to your configuration.yaml file:
-
-### Example configuration.yaml entry
-
+Edit your `config/configuration.yaml` and add there:
 ```
-climate:
-  - platform: salusfy
-    username: "EMAIL"
-    password: "PASSWORD"
-    id: "DEVICEID"
+salus_it500:
+  username: "EMAIL"
+  password: "PASSWORD"
+  id: "DEVICEID"
+  platforms:
+    - climate
+    - water_heater
 ```
-![image](https://user-images.githubusercontent.com/33951255/140300295-4915a18f-f5d4-4957-b513-59d7736cc52a.png)
-![image](https://user-images.githubusercontent.com/33951255/140303472-fd38b9e4-5c33-408f-afef-25547c39551c.png)
-
-
-### Getting the DEVICEID
-1. Loggin to https://salus-it500.com with email and password used in the mobile app(in my case RT301i)
-2. Click on the device
-3. In the next page you will be able to see the device ID in the page URL
-4. Copy the device ID from the URL
+where EMAIL and PASSWORD are credentials for mobile app or [https://salus-it500.com](https://salus-it500.com) login. In order to obtain DEVICEID you need to access mentioned Salus page, login, select device and copy `devId` from URL params:
 ![image](https://user-images.githubusercontent.com/33951255/140301260-151b6af9-dbc4-4e90-a14e-29018fe2e482.png)
 
-
-### Known issues
-salus-it500.com server is bloking the IP of the host, in our case the HA external IP. This can be fixed with router restart in case of PPOE connection or you can try to send a mail to salus support...
+Last piece is selecting right platforms for you, supported are `climate` and `water_heater`. Enjoy your automation.

@@ -1,10 +1,6 @@
 """
 Adds support for the Salus Thermostat units.
 """
-import sys
-from os import path
-sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
-
 import logging
 
 from homeassistant.components.climate.const import (
@@ -34,12 +30,7 @@ except ImportError:
 
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.device_registry import DeviceInfo
-from salus_it500.common import (
-    Salus
-)
-
-__version__ = "0.0.1"
-
+from . import Salus
 
 _LOGGER = logging.getLogger(__name__)
 
