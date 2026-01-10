@@ -20,6 +20,8 @@ from homeassistant.const import (
 __version__ = "0.0.1"
 
 DOMAIN = "salus_it500"
+PLATFORMS = "platforms"
+DEFAULT_PLATFORMS = [CLIMATE_DOMAIN, WATER_HEATER_DOMAIN]
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -28,6 +30,7 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Required(CONF_USERNAME): cv.string,
                 vol.Required(CONF_PASSWORD): cv.string,
                 vol.Required(CONF_ID): cv.string,
+                vol.Optional(PLATFORMS, default=DEFAULT_PLATFORMS): vol.All(cv.ensure_list, [cv.string]),
             }
         )
     },
@@ -38,25 +41,27 @@ async def async_setup(hass, hass_config):
     """Set up Generic Water Heaters."""
     conf = hass_config.get(DOMAIN)
 
-    hass.async_create_task(
-        discovery.async_load_platform(
-            hass,
-            CLIMATE_DOMAIN,
-            DOMAIN,
-            conf,
-            hass_config,
+    if CLIMATE_DOMAIN in config[PLATFORMS]:
+        hass.async_create_task(
+            discovery.async_load_platform(
+                hass,
+                CLIMATE_DOMAIN,
+                DOMAIN,
+                conf,
+                hass_config,
+            )
         )
-    )
 
-    hass.async_create_task(
-        discovery.async_load_platform(
-            hass,
-            WATER_HEATER_DOMAIN,
-            DOMAIN,
-            conf,
-            hass_config,
+    if WATER_HEATER_DOMAIN in config[PLATFORMS]:
+        hass.async_create_task(
+            discovery.async_load_platform(
+                hass,
+                WATER_HEATER_DOMAIN,
+                DOMAIN,
+                conf,
+                hass_config,
+            )
         )
-    )
         
     return True
 
@@ -69,7 +74,6 @@ class Salus():
         self._deviceId = deviceId
         self._token = None
         self._retryCount = 0
-        # self._session = CachedSession(DOMAIN, expire_after=10, allowable_methods=("GET"), ignored_parameters=("&_"), stale_if_error=True)
         self._session = requests.Session()
          
     def _get_token(self) -> None:
