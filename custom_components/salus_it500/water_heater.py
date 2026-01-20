@@ -123,13 +123,6 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
             return TemperatureConverter.convert(DEFAULT_MIN_TEMP, UnitOfTemperature.FAHRENHEIT, self._unit_of_measurement)
 
     @property
-    def target_temperature(self):
-        if self._current_operation == STATE_ON:
-            return TemperatureConverter.convert(DEFAULT_MAX_TEMP, UnitOfTemperature.FAHRENHEIT, self._unit_of_measurement)
-        else
-            return TemperatureConverter.convert(DEFAULT_MIN_TEMP, UnitOfTemperature.FAHRENHEIT, self._unit_of_measurement)
-
-    @property
     def temperature_unit(self):
         return self._unit_of_measurement
 
