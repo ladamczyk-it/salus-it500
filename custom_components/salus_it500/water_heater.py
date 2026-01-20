@@ -116,6 +116,10 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
             self.turn_off()
 
     @property
+    def current_temperature(self):
+        return TemperatureConverter.convert(DEFAULT_MAX_TEMP, UnitOfTemperature.FAHRENHEIT, self._unit_of_measurement)
+
+    @property
     def temperature_unit(self):
         return self._unit_of_measurement
 
