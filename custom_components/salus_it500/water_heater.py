@@ -108,10 +108,10 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
             _LOGGER.error("Error setting mode OFF.", e)
 
     def set_operation_mode(self, operation_mode: str) -> None:
-        if operation_mode == STATE_ON and self._current_operation != STATE_ON:
+        if operation_mode == STATE_ON:
             self.turn_on()
         elif (
-            operation_mode == STATE_OFF and self._current_operation != STATE_OFF
+            operation_mode == STATE_OFF
         ):        
             self.turn_off()
 
