@@ -30,6 +30,7 @@ MIN_TEMP = 5
 MAX_TEMP = 34.5
 
 SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE
+SCAN_INTERVAL = timedelta(minutes=10)
 
 async def async_setup_platform(hass, hass_config, async_add_entities, discovery_info=None):    
     name = "Salus thermostat"
