@@ -2,6 +2,7 @@
 Adds support for the Salus Thermostat units.
 """
 import logging
+from datetime import timedelta
 
 from homeassistant.components.climate.const import (
     HVACAction,

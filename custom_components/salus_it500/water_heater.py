@@ -2,6 +2,7 @@
 Adds support for the Salus water heater units.
 """
 import logging
+from datetime import timedelta
 
 from homeassistant.const import (
     CONF_PASSWORD,
