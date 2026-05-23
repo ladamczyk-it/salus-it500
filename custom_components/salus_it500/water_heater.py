@@ -105,7 +105,7 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
     def turn_off(self):
         try: 
             if self._set_data({"hwmode_off": "1"}):
-                self._current_operation = STATE_ON
+                self._current_operation = STATE_OFF
         except Exception as e:
             _LOGGER.error("Error setting mode OFF.", e)
 
