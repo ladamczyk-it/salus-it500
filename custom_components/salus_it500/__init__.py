@@ -1,10 +1,10 @@
 """The Salus iT500 component."""
-import datetime
 import time
 import logging
 import re
+import threading
 import requests
-import json 
+import json
 import voluptuous as vol
 
 from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
@@ -17,11 +17,21 @@ from homeassistant.const import (
     CONF_ID,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 __version__ = "0.0.1"
 
 DOMAIN = "salus_it500"
 PLATFORMS = "platforms"
 DEFAULT_PLATFORMS = [CLIMATE_DOMAIN, WATER_HEATER_DOMAIN]
+
+# A single fetch of ajax_device_values.php carries both the thermostat (CH1*)
+# and water heater (HW*) data, so we cache it briefly and serve both entities
+# from one network call. Keep below the fastest poll interval (water_heater = 60s)
+# so each poll still gets reasonably fresh data.
+DATA_TTL = 115          # seconds
+# Refresh the session token proactively instead of only after a call fails.
+TOKEN_TTL = 30 * 60    # seconds
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -40,6 +50,11 @@ CONFIG_SCHEMA = vol.Schema(
 async def async_setup(hass, hass_config):
     """Set up Generic Water Heaters."""
     config = hass_config.get(DOMAIN)
+
+    # Build a single shared client so both platforms reuse one session, one
+    # login and one cached data fetch instead of authenticating separately.
+    salus = Salus(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_ID])
+    hass.data.setdefault(DOMAIN, {})[config[CONF_ID]] = salus
 
     if CLIMATE_DOMAIN in config[PLATFORMS]:
         hass.async_create_task(
@@ -65,88 +80,105 @@ async def async_setup(hass, hass_config):
         
     return True
 
-class Salus():
-    """Salus abstraction."""
+class Salus:
+    """HTTP client for salus-it500.com, shared by all entities of one device.
+
+    Caches the session token and the most recent device-values fetch so that
+    the climate and water_heater entities reuse a single login and, most of
+    the time, a single read per cache window instead of calling out separately.
+    All public methods run in HA's executor (blocking I/O), so a lock guards
+    the shared token/data state against overlapping polls.
+    """
+
+    LOGIN_URL = "https://salus-it500.com/public/login.php"
+    CONTROL_URL = "https://salus-it500.com/public/control.php"
+    VALUES_URL = "https://salus-it500.com/public/ajax_device_values.php"
+    SET_URL = "https://salus-it500.com/includes/set.php"
 
     def __init__(self, username, password, deviceId):
         self._username = username
         self._password = password
         self._deviceId = deviceId
-        self._token = None
-        self._retryCount = 0
         self._session = requests.Session()
-         
-    def _get_token(self) -> None:
-        """Get the Session Token."""
-        headers = {"content-type": "application/x-www-form-urlencoded"}
-        payload = {"IDemail": self._username, "password": self._password, "login": "Login", "keep_logged_in": "1"}
-        
-        try:
-            self._session.post("https://salus-it500.com/public/login.php", data=payload, headers=headers)
-            
-            params={"devId": self._deviceId}
-            getToken = self._session.get("https://salus-it500.com/public/control.php", params=params)
-            
-            result = re.search('<input id="token" type="hidden" value="(.*)" />', getToken.text)
-            
-            self._token = result.group(1)
-            self._retryCount = 0
-        except:
-            self._retryCount = self._retryCount + 1
+        self._lock = threading.Lock()
+        self._token = None
+        self._token_time = 0.0
+        self._data = None
+        self._data_time = 0.0
 
-            if self._retryCount < 11:
-                self._get_token()
-            else:
-                raise Exception("Error geting session token.")
+    def _token_valid(self) -> bool:
+        return self._token is not None and (time.monotonic() - self._token_time) < TOKEN_TTL
+
+    def _get_token(self) -> None:
+        """(Re)authenticate and scrape a fresh token. Caller must hold the lock."""
+        headers = {"content-type": "application/x-www-form-urlencoded"}
+        payload = {
+            "IDemail": self._username,
+            "password": self._password,
+            "login": "Login",
+            "keep_logged_in": "1",
+        }
+
+        for attempt in range(10):
+            try:
+                self._session.post(self.LOGIN_URL, data=payload, headers=headers)
+                page = self._session.get(self.CONTROL_URL, params={"devId": self._deviceId})
+                result = re.search('<input id="token" type="hidden" value="(.*)" />', page.text)
+                self._token = result.group(1)
+                self._token_time = time.monotonic()
+                return
+            except Exception:
+                self._token = None
+                _LOGGER.debug("Token fetch failed (attempt %s/10)", attempt + 1)
+
+        raise Exception("Error getting session token.")
 
     def _get_data(self) -> object:
-        if self._token is None:
-            self._get_token()
+        """Return device values, served from cache when still warm."""
+        with self._lock:
+            if self._data is not None and (time.monotonic() - self._data_time) < DATA_TTL:
+                return self._data
 
-        params = {"devId": self._deviceId, "token": self._token, "&_": str(int(round(time.time() * 1000)))}
-        
-        try:
-            r = self._session.get("https://salus-it500.com/public/ajax_device_values.php", params = params)
-            
-            try:
-                if r:
-                    self._retryCount = 0
-                    return json.loads(r.text)
-                else:
-                    raise Exception("Could not get data from Salus.")
+            for attempt in range(10):
+                try:
+                    if not self._token_valid():
+                        self._get_token()
 
-            except:
-                self._token = None
-                self._retryCount = self._retryCount + 1
+                    params = {
+                        "devId": self._deviceId,
+                        "token": self._token,
+                        "&_": str(int(round(time.time() * 1000))),
+                    }
+                    r = self._session.get(self.VALUES_URL, params=params)
+                    data = json.loads(r.text)  # raises if the session expired (non-JSON body)
 
-                if self._retryCount < 11:
-                    return self._get_data()
-                else:
-                    raise Exception("Error geting data from the web. Please check the connection to salus-it500.com manually.")
-        except:
-            self._token = None
-            self._retryCount = self._retryCount + 1
+                    self._data = data
+                    self._data_time = time.monotonic()
+                    return data
+                except Exception:
+                    self._token = None  # force re-auth on the next attempt
+                    _LOGGER.debug("Data fetch failed (attempt %s/10)", attempt + 1)
 
-            if self._retryCount < 11:
-                return self._get_data()
-            else:
-                raise Exception("Error geting data from the web. Please check the connection to salus-it500.com manually.")
+            raise Exception(
+                "Error getting data from the web. Please check the connection to salus-it500.com manually."
+            )
 
     def _set_data(self, data) -> bool:
-        if self._token is None:
-            self._get_token()
+        """Push a config change, then invalidate the cache so the next read is fresh."""
+        with self._lock:
+            headers = {"content-type": "application/x-www-form-urlencoded"}
 
-        headers = {"content-type": "application/x-www-form-urlencoded"}
-        payload = {"token": self._token, "devId": self._deviceId, **data}
+            for attempt in range(10):
+                try:
+                    if not self._token_valid():
+                        self._get_token()
 
-        try:
-            self._session.post("https://salus-it500.com/includes/set.php", data=payload, headers=headers)
-            self._retryCount = 0
-        except:
-            self._token = None
-            self._retryCount = self._retryCount + 1
+                    payload = {"token": self._token, "devId": self._deviceId, **data}
+                    self._session.post(self.SET_URL, data=payload, headers=headers)
+                    self._data = None  # device state changed; drop the cached read
+                    return True
+                except Exception:
+                    self._token = None
+                    _LOGGER.debug("Config push failed (attempt %s/10)", attempt + 1)
 
-            if self._retryCount < 11:
-                return self._set_data(data)
-            else:
-                raise Exception("Error while pushing config.")
+            raise Exception("Error while pushing config.")

@@ -5,8 +5,6 @@ import logging
 from datetime import timedelta
 
 from homeassistant.const import (
-    CONF_PASSWORD,
-    CONF_USERNAME,
     CONF_ID,
     STATE_OFF,
     STATE_ON,
@@ -23,32 +21,30 @@ from homeassistant.components.water_heater import (
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.util.unit_conversion import TemperatureConverter
 from homeassistant.helpers.device_registry import DeviceInfo
-from . import Salus
+from . import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 SUPPORT_FLAGS = WaterHeaterEntityFeature.OPERATION_MODE
-SCAN_INTERVAL = timedelta(minutes=1)
+SCAN_INTERVAL = timedelta(minutes=2)
 
-async def async_setup_platform(hass, hass_config, async_add_entities, discovery_info=None):    
+async def async_setup_platform(hass, hass_config, async_add_entities, discovery_info=None):
     name = "Salus water heater"
 
-    if discovery_info != None: 
-        username = discovery_info[CONF_USERNAME]
-        password = discovery_info[CONF_PASSWORD]
-        id = discovery_info[CONF_ID]
+    if discovery_info != None:
+        deviceId = discovery_info[CONF_ID]
+        salus = hass.data[DOMAIN][deviceId]
 
         async_add_entities(
-            [SalusWaterHeater(hass, name, username, password, id)]
+            [SalusWaterHeater(hass, name, salus, deviceId)]
         )
 
 
-class SalusWaterHeater(WaterHeaterEntity, Salus):
+class SalusWaterHeater(WaterHeaterEntity):
     """Representation of a Salus water heater device."""
 
-    def __init__(self, hass, name, username, password, deviceId):
-        super(SalusWaterHeater, self).__init__(username, password, deviceId)
-
+    def __init__(self, hass, name, salus, deviceId):
+        self._salus = salus
         self._attr_unique_id=f"salus_it500_{deviceId}_water_heater"
         self._attr_available = False
         self._hass = hass
@@ -96,15 +92,15 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
         return self._operation_list
 
     def turn_on(self):
-        try: 
-            if self._set_data({"hwmode_once": "1"}):
+        try:
+            if self._salus._set_data({"hwmode_once": "1"}):
                 self._current_operation = STATE_ON
         except Exception as e:
             _LOGGER.error("Error setting mode ON.", e)
 
     def turn_off(self):
-        try: 
-            if self._set_data({"hwmode_off": "1"}):
+        try:
+            if self._salus._set_data({"hwmode_off": "1"}):
                 self._current_operation = STATE_OFF
         except Exception as e:
             _LOGGER.error("Error setting mode OFF.", e)
@@ -151,7 +147,7 @@ class SalusWaterHeater(WaterHeaterEntity, Salus):
             
     async def get_data(self):
         try: 
-            data = await self._hass.async_add_executor_job(self._get_data)
+            data = await self._hass.async_add_executor_job(self._salus._get_data)
 
             if data['HWonOffStatus'] == "1":
                 self._current_operation = STATE_ON

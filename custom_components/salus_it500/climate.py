@@ -11,8 +11,6 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import (
     ATTR_TEMPERATURE,
-    CONF_PASSWORD,
-    CONF_USERNAME,
     CONF_ID,
     STATE_OFF,
     STATE_ON,
@@ -22,7 +20,7 @@ from homeassistant.const import (
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.components.climate import ClimateEntity
-from . import Salus
+from . import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,26 +31,24 @@ MAX_TEMP = 34.5
 SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE
 SCAN_INTERVAL = timedelta(minutes=10)
 
-async def async_setup_platform(hass, hass_config, async_add_entities, discovery_info=None):    
+async def async_setup_platform(hass, hass_config, async_add_entities, discovery_info=None):
     name = "Salus thermostat"
 
-    if discovery_info != None: 
-        username = discovery_info[CONF_USERNAME]
-        password = discovery_info[CONF_PASSWORD]
-        id = discovery_info[CONF_ID]
+    if discovery_info != None:
+        deviceId = discovery_info[CONF_ID]
+        salus = hass.data[DOMAIN][deviceId]
 
         async_add_entities(
-            [SalusThermostat(hass, name, username, password, id)]
+            [SalusThermostat(hass, name, salus, deviceId)]
         )
-    
 
-class SalusThermostat(ClimateEntity, Salus):
+
+class SalusThermostat(ClimateEntity):
     """Representation of a Salus Thermostat device."""
 
-    def __init__(self, hass, name, username, password, deviceId):
+    def __init__(self, hass, name, salus, deviceId):
         """Initialize the thermostat."""
-        super(SalusThermostat, self).__init__(username, password, deviceId)
-
+        self._salus = salus
         self._attr_unique_id=f"salus_it500_{deviceId}_thermostat"
         self._attr_available = False
         self._hass = hass
@@ -139,7 +135,7 @@ class SalusThermostat(ClimateEntity, Salus):
             return
 
         try:
-            if self._set_data({"tempUnit": "0", "current_tempZ1_set": "1", "current_tempZ1": temperature}):
+            if self._salus._set_data({"tempUnit": "0", "current_tempZ1_set": "1", "current_tempZ1": temperature}):
                 self._target_temperature = temperature
         except Exception as e:
             _LOGGER.error("Error Setting the temperature.", e)
@@ -148,20 +144,20 @@ class SalusThermostat(ClimateEntity, Salus):
     def set_hvac_mode(self, hvac_mode):
         if hvac_mode == HVACMode.OFF:
             try:
-                if self._set_data({"auto": "1", "auto_setZ1": "1"}):
+                if self._salus._set_data({"auto": "1", "auto_setZ1": "1"}):
                     self._current_operation_mode = STATE_OFF
             except Exception as e:
                 _LOGGER.error("Error Setting HVAC mode OFF.", e)
         elif hvac_mode == HVACMode.HEAT:
             try:
-                if self._set_data({"auto": "0", "auto_setZ1": "1"}):
+                if self._salus._set_data({"auto": "0", "auto_setZ1": "1"}):
                     self._current_operation_mode = STATE_ON
             except Exception as e:
                 _LOGGER.error("Error Setting HVAC mode HEAT.", e)
 
     async def get_data(self):
         try: 
-            data = await self._hass.async_add_executor_job(self._get_data)
+            data = await self._hass.async_add_executor_job(self._salus._get_data)
 
             self._target_temperature = float(data["CH1currentSetPoint"])
             self._current_temperature = float(data["CH1currentRoomTemp"])
