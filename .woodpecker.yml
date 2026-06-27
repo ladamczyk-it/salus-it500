@@ -1,0 +1,27 @@
+when:
+  - event: push
+    branch: main
+
+steps:
+  - name: stop-container
+    image: docker:cli
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    commands:
+      - docker compose stop haos
+
+  - name: deploy-artefact
+    image: alpine:latest
+    commands:
+      - rm -rf /usr/build/*
+      - mkdir -p /usr/build
+      - cp -r custom_components/salus_it500/* /usr/build/
+    volumes:
+      - /haos/config/custom_components/salus_it500:/usr/build
+
+  - name: rebuild-container
+    image: docker:cli
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    commands:
+      - docker compose up -d --build haos
