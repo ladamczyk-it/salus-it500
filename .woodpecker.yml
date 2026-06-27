@@ -14,7 +14,6 @@ steps:
     image: alpine:latest
     commands:
       - rm -rf /usr/build/*
-      - mkdir -p /usr/build
       - cp -r custom_components/salus_it500/* /usr/build/
     volumes:
       - /haos/config/custom_components/salus_it500:/usr/build
