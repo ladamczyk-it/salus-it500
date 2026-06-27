@@ -7,6 +7,7 @@ steps:
     image: docker:cli
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /home/joke:/home/joke
     commands:
       - docker compose -f /home/joke/docker-compose.yml stop haos
 
@@ -22,5 +23,6 @@ steps:
     image: docker:cli
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /home/joke:/home/joke
     commands:
       - docker compose -f /home/joke/docker-compose.yml up -d --build haos
