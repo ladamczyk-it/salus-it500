@@ -8,7 +8,7 @@ steps:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
-      - docker compose stop haos
+      - docker compose -f /home/joke/docker-compose.yml stop haos
 
   - name: deploy-artefact
     image: alpine:latest
@@ -16,11 +16,11 @@ steps:
       - rm -rf /usr/build/*
       - cp -r custom_components/salus_it500/* /usr/build/
     volumes:
-      - /haos/config/custom_components/salus_it500:/usr/build
+      - /home/joke/haos/config/custom_components/salus_it500:/usr/build
 
   - name: rebuild-container
     image: docker:cli
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
-      - docker compose up -d --build haos
+      - docker compose -f /home/joke/docker-compose.yml up -d --build haos
