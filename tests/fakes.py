@@ -1,43 +1,75 @@
 """A fake ``requests.Session`` for exercising the Salus client offline."""
 
 
-class FakeResponse:
-    def __init__(self, text):
-        self.text = text
+def attributes_xml(attrs):
+    """Build a getDeviceAttributesWithValues body from a name -> value dict."""
+    items = "".join(
+        f"<attrList><name>{name}</name><value>{value}</value></attrList>"
+        for name, value in attrs.items()
+    )
+    return (
+        '<ns1:getDeviceAttributesWithValuesResponse xmlns:ns1="http://arrayent.com/zamapi/">'
+        f"{items}</ns1:getDeviceAttributesWithValuesResponse>"
+    )
 
-    def __bool__(self):
-        return True
+
+SET_OK = (
+    '<ns1:setMultiDeviceAttributes2Response xmlns:ns1="http://arrayent.com/zamapi/">'
+    "<retCode>0</retCode></ns1:setMultiDeviceAttributes2Response>"
+)
+
+
+class FakeResponse:
+    def __init__(self, text="", status_code=200, json_body=None):
+        self.text = text
+        self.status_code = status_code
+        self._json = json_body
+
+    def json(self):
+        if self._json is None:
+            raise ValueError("no JSON body")
+        return self._json
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise Exception(f"HTTP {self.status_code}")
 
 
 class FakeSession:
     """Records every call and returns programmable bodies per endpoint.
 
-    Set ``token_html`` to control what the control page scrape sees, and
-    ``values_queue`` to a list to hand out per-call bodies (used for retry
-    tests); otherwise ``values_text`` is returned for every values request.
+    Set ``attrs`` to control the device attributes, and ``values_queue`` to a
+    list to hand out per-call bodies (used for retry tests); otherwise
+    ``attrs`` is rendered for every attribute request. ``set_status`` controls
+    the HTTP status of setMultiDeviceAttributes2.
     """
 
-    DEFAULT_VALUES = '{"CH1currentRoomTemp": "20.5", "CH1currentSetPoint": "21.0", "HWonOffStatus": "1"}'
+    DEFAULT_ATTRS = {
+        "A84": "2050", "A85": "2100", "A87": "1", "A88": "0", "A89": "0",
+        "A92": "0", "A93": "2100", "S09": "500", "C42": "0", "C45": "1",
+        "online": "1",
+    }
 
     def __init__(self):
         self.calls = []  # list of (method, url, payload-or-params)
-        self.token_html = '<input id="token" type="hidden" value="TOK123" />'
-        self.values_text = self.DEFAULT_VALUES
+        self.login_body = {"securityToken": "TOK123", "userId": 42}
+        self.attrs = dict(self.DEFAULT_ATTRS)
         self.values_queue = None
+        self.set_status = 200
 
-    def post(self, url, data=None, headers=None):
-        self.calls.append(("POST", url, data))
-        return FakeResponse("ok")
+    def post(self, url, json=None, headers=None, timeout=None):
+        self.calls.append(("POST", url, json))
+        return FakeResponse(json_body=self.login_body)
 
-    def get(self, url, params=None):
+    def get(self, url, params=None, timeout=None):
         self.calls.append(("GET", url, params))
-        if "control.php" in url:
-            return FakeResponse(self.token_html)
-        if "ajax_device_values.php" in url:
+        if "getDeviceAttributesWithValues" in url:
             if self.values_queue is not None:
-                return FakeResponse(self.values_queue.pop(0))
-            return FakeResponse(self.values_text)
-        return FakeResponse("ok")
+                return self.values_queue.pop(0)
+            return FakeResponse(attributes_xml(self.attrs))
+        if "setMultiDeviceAttributes2" in url:
+            return FakeResponse(SET_OK, status_code=self.set_status)
+        return FakeResponse("", status_code=404)
 
 
 def count(session, substr, method=None):

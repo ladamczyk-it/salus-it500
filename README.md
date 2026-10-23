@@ -15,8 +15,20 @@ salus_it500:
   password: "PASSWORD"
   id: "DEVICEID"
 ```
-where EMAIL and PASSWORD are credentials for mobile app or [https://salus-it500.com](https://salus-it500.com) login. In order to obtain DEVICEID you need to access mentioned Salus page, login, select device and copy `devId` from URL params:
-![image](https://user-images.githubusercontent.com/33951255/140301260-151b6af9-dbc4-4e90-a14e-29018fe2e482.png)
+where EMAIL and PASSWORD are your Salus iT500 mobile app credentials.
+
+DEVICEID is the device's `devId`. It is the same number that the old [salus-it500.com](https://salus-it500.com) portal showed in its URL (`control.php?devId=...`). If you have it from there, use it. If the portal is unavailable, you can list your devices from the Arrayent API, which the integration uses:
+```
+TOKEN=$(curl -s -X POST https://sal-emea-p01-api.arrayent.com/acc/applications/SalusService/sessions \
+  -H 'Authorization: 687886-679716122' -H 'Content-Type: application/json' \
+  -d "{\"username\":\"EMAIL\",\"password\":\"$(printf %s 'PASSWORD' | md5sum | cut -d' ' -f1)\"}")
+curl -s "https://sal-emea-p01-api.arrayent.com/zdk/services/zamapi/getDeviceList?secToken=$(echo "$TOKEN" | jq -r .securityToken)&userId=$(echo "$TOKEN" | jq -r .userId)"
+```
+and take the `<devId>` from the response.
+
+### How it talks to Salus
+
+The integration uses the same cloud backend as the Salus iT500 mobile app: the Arrayent "App API" at `sal-emea-p01-api.arrayent.com`. Earlier versions scraped the salus-it500.com web portal, which stopped working in October 2026 while the app kept working. The API is undocumented and not endorsed by Salus, so it may change without notice. Thanks to [gvasilakiss/salus-it500](https://github.com/gvasilakiss/salus-it500) for the attribute map.
 
 ### Platforms
 

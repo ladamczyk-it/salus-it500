@@ -1,10 +1,10 @@
 """The Salus iT500 component."""
 import time
+import hashlib
 import logging
-import re
 import threading
 import requests
-import json
+import xml.etree.ElementTree as ET
 import voluptuous as vol
 
 from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
@@ -19,14 +19,14 @@ from homeassistant.const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 
 DOMAIN = "salus_it500"
 PLATFORMS = "platforms"
 DEFAULT_PLATFORMS = [CLIMATE_DOMAIN, WATER_HEATER_DOMAIN]
 
-# A single fetch of ajax_device_values.php carries both the thermostat (CH1*)
-# and water heater (HW*) data, so we cache it briefly and serve both entities
+# A single getDeviceAttributesWithValues call carries both the thermostat (A*)
+# and water heater (C*) data, so we cache it briefly and serve both entities
 # from one network call. Keep below the fastest poll interval (water_heater = 60s)
 # so each poll still gets reasonably fresh data.
 DATA_TTL = 115          # seconds
@@ -81,57 +81,127 @@ async def async_setup(hass, hass_config):
     return True
 
 class Salus:
-    """HTTP client for salus-it500.com, shared by all entities of one device.
+    """HTTP client for the Arrayent "App API" behind the Salus iT500 phone app.
 
-    Caches the session token and the most recent device-values fetch so that
+    salus-it500.com (the old web portal) went down on 2026-10-22, while the
+    Arrayent backend the app and gateway use kept working. Reads and writes go
+    to sal-emea-p01-api.arrayent.com instead.
+
+    The entities were written against the portal's JSON, so _get_data()
+    translates Arrayent attributes back to the portal key names and
+    _set_data() translates portal-style payloads to attribute writes. That keeps
+    climate.py / water_heater.py unchanged.
+
+    Caches the session token and the most recent attribute fetch so that
     the climate and water_heater entities reuse a single login and, most of
     the time, a single read per cache window instead of calling out separately.
     All public methods run in HA's executor (blocking I/O), so a lock guards
     the shared token/data state against overlapping polls.
     """
 
-    LOGIN_URL = "https://salus-it500.com/public/login.php"
-    CONTROL_URL = "https://salus-it500.com/public/control.php"
-    VALUES_URL = "https://salus-it500.com/public/ajax_device_values.php"
-    SET_URL = "https://salus-it500.com/includes/set.php"
+    HOST = "https://sal-emea-p01-api.arrayent.com"
+    LOGIN_URL = HOST + "/acc/applications/SalusService/sessions"
+    API_URL = HOST + "/zdk/services/zamapi/"
+    # Identifies the Salus tenant on Arrayent; same value the iT500 app sends.
+    APP_AUTHORIZATION = "687886-679716122"
+    TIMEOUT = 30
 
     def __init__(self, username, password, deviceId):
         self._username = username
-        self._password = password
+        self._password_md5 = hashlib.md5(password.encode("utf-8")).hexdigest()
         self._deviceId = deviceId
         self._session = requests.Session()
         self._lock = threading.Lock()
         self._token = None
+        self._user_id = None
         self._token_time = 0.0
         self._data = None
         self._data_time = 0.0
+        self._attrs = {}  # last raw attribute map; writes depend on the current mode
 
     def _token_valid(self) -> bool:
         return self._token is not None and (time.monotonic() - self._token_time) < TOKEN_TTL
 
     def _get_token(self) -> None:
-        """(Re)authenticate and scrape a fresh token. Caller must hold the lock."""
-        headers = {"content-type": "application/x-www-form-urlencoded"}
-        payload = {
-            "IDemail": self._username,
-            "password": self._password,
-            "login": "Login",
-            "keep_logged_in": "1",
+        """(Re)authenticate and store a fresh token. Caller must hold the lock."""
+        headers = {
+            "Authorization": self.APP_AUTHORIZATION,
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        payload = {"username": self._username, "password": self._password_md5}
+
+        r = self._session.post(self.LOGIN_URL, json=payload, headers=headers, timeout=self.TIMEOUT)
+        r.raise_for_status()
+        data = r.json()
+        self._token = data["securityToken"]
+        self._user_id = data["userId"]
+        self._token_time = time.monotonic()
+
+    def _call(self, method, params) -> str:
+        """GET a zamapi method. POST without a body is rejected with a SOAP 500."""
+        query = {**params, "secToken": self._token, "userId": self._user_id}
+        r = self._session.get(self.API_URL + method, params=query, timeout=self.TIMEOUT)
+        if method == "setMultiDeviceAttributes2" and r.status_code == 500:
+            # Known false negative: the write is usually applied anyway.
+            # The next (uncached) read shows the real state.
+            _LOGGER.debug("setMultiDeviceAttributes2 answered 500: %s", r.text[:200])
+            return r.text
+        r.raise_for_status()
+        return r.text
+
+    @staticmethod
+    def _attributes(text) -> dict:
+        attrs = {}
+        for element in ET.fromstring(text).iter():
+            if element.tag.rpartition("}")[2] != "attrList":
+                continue
+            name = element.findtext("name")
+            if name:
+                attrs[name] = (element.findtext("value") or "").strip()
+        return attrs
+
+    @staticmethod
+    def _to_portal(attrs) -> dict:
+        """Map Arrayent attributes to the salus-it500.com JSON keys the entities read."""
+        def temp(name):
+            return str(int(attrs[name]) / 100)
+
+        return {
+            "CH1currentRoomTemp": temp("A84"),
+            "CH1currentSetPoint": temp("A85"),
+            "frost": temp("S09"),
+            "CH1heatOnOffStatus": attrs.get("A87", "0"),  # boiler relay
+            "CH1heatOnOff": attrs.get("A89", "0"),        # 1 = zone switched off
+            "HWonOffStatus": attrs.get("C45", "0"),
+            "online": attrs.get("online", ""),
         }
 
-        for attempt in range(10):
-            try:
-                self._session.post(self.LOGIN_URL, data=payload, headers=headers)
-                page = self._session.get(self.CONTROL_URL, params={"devId": self._deviceId})
-                result = re.search('<input id="token" type="hidden" value="(.*)" />', page.text)
-                self._token = result.group(1)
-                self._token_time = time.monotonic()
-                return
-            except Exception:
-                self._token = None
-                _LOGGER.debug("Token fetch failed (attempt %s/10)", attempt + 1)
+    def _to_attributes(self, data) -> dict:
+        """Map a portal-style set.php payload to Arrayent attribute writes.
 
-        raise Exception("Error getting session token.")
+        Mode flags: A89 off, A92 manual, A88 temp-hold (until next schedule step).
+        """
+        if "current_tempZ1" in data:
+            setpoint = int(round(float(data["current_tempZ1"]) * 100))
+            if self._attrs.get("A92") == "1":
+                # Manual mode: change the manual setpoint, as the phone app does.
+                # Setting A88 here would leave manual and temp-hold both on.
+                return {"A85": setpoint, "A93": setpoint}
+            # Schedule mode: hold until the next scheduled change.
+            return {"A88": 1, "A85": setpoint}
+        if data.get("auto") == "1":
+            # Off: off flag set, manual and temp-hold cleared.
+            return {"A89": 1, "A92": 0, "A88": 0}
+        if data.get("auto") == "0":
+            # Heat: manual mode at the manual setpoint, which is what the
+            # portal's "auto=0" left the thermostat in.
+            return {"A89": 0, "A92": 1, "A88": 0}
+        if "hwmode_once" in data:
+            return {"C42": 1}
+        if "hwmode_off" in data:
+            return {"C42": 3}
+        raise ValueError(f"Unsupported Salus command: {data}")
 
     def _get_data(self) -> object:
         """Return device values, served from cache when still warm."""
@@ -139,46 +209,52 @@ class Salus:
             if self._data is not None and (time.monotonic() - self._data_time) < DATA_TTL:
                 return self._data
 
-            for attempt in range(10):
+            for attempt in range(3):
                 try:
                     if not self._token_valid():
                         self._get_token()
 
-                    params = {
-                        "devId": self._deviceId,
-                        "token": self._token,
-                        "&_": str(int(round(time.time() * 1000))),
-                    }
-                    r = self._session.get(self.VALUES_URL, params=params)
-                    data = json.loads(r.text)  # raises if the session expired (non-JSON body)
+                    text = self._call(
+                        "getDeviceAttributesWithValues",
+                        {"devId": self._deviceId, "deviceTypeId": 1},
+                    )
+                    attrs = self._attributes(text)
+                    data = self._to_portal(attrs)
+
+                    self._attrs = attrs
 
                     self._data = data
                     self._data_time = time.monotonic()
                     return data
-                except Exception:
+                except Exception as e:
                     self._token = None  # force re-auth on the next attempt
-                    _LOGGER.debug("Data fetch failed (attempt %s/10)", attempt + 1)
+                    _LOGGER.debug("Data fetch failed (attempt %s/3): %s", attempt + 1, e)
 
             raise Exception(
-                "Error getting data from the web. Please check the connection to salus-it500.com manually."
+                "Error getting data from the Salus cloud. Please check the connection to sal-emea-p01-api.arrayent.com manually."
             )
 
     def _set_data(self, data) -> bool:
         """Push a config change, then invalidate the cache so the next read is fresh."""
-        with self._lock:
-            headers = {"content-type": "application/x-www-form-urlencoded"}
+        pairs = list(self._to_attributes(data).items())
 
-            for attempt in range(10):
+        with self._lock:
+            for attempt in range(3):
                 try:
                     if not self._token_valid():
                         self._get_token()
 
-                    payload = {"token": self._token, "devId": self._deviceId, **data}
-                    self._session.post(self.SET_URL, data=payload, headers=headers)
+                    # setMultiDeviceAttributes2 takes at most three pairs per call.
+                    params = {"devId": self._deviceId}
+                    for index, (name, value) in enumerate(pairs, start=1):
+                        params[f"name{index}"] = name
+                        params[f"value{index}"] = str(value)
+                    self._call("setMultiDeviceAttributes2", params)
+
                     self._data = None  # device state changed; drop the cached read
                     return True
-                except Exception:
+                except Exception as e:
                     self._token = None
-                    _LOGGER.debug("Config push failed (attempt %s/10)", attempt + 1)
+                    _LOGGER.debug("Config push failed (attempt %s/3): %s", attempt + 1, e)
 
             raise Exception("Error while pushing config.")
