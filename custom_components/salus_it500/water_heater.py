@@ -20,7 +20,6 @@ from homeassistant.components.water_heater import (
 
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.util.unit_conversion import TemperatureConverter
-from homeassistant.helpers.device_registry import DeviceInfo
 from . import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,7 +35,7 @@ async def async_setup_platform(hass, hass_config, async_add_entities, discovery_
         salus = hass.data[DOMAIN][deviceId]
 
         async_add_entities(
-            [SalusWaterHeater(hass, name, salus, deviceId)]
+            [SalusWaterHeater(hass, name, salus, deviceId)], True
         )
 
 
@@ -61,15 +60,6 @@ class SalusWaterHeater(WaterHeaterEntity):
     @property
     def unique_id(self) -> str:
         return self._attr_unique_id
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._attr_unique_id)},
-            manufacturer="Salus",
-            model="IT500",
-            name=self.name,
-        )
 
     @property
     def supported_features(self) -> WaterHeaterEntityFeature:
