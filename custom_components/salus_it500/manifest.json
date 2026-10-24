@@ -1,7 +1,7 @@
 {
   "domain": "salus_it500",
   "name": "Salus iT500 - thermostat + water heater",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "documentation": "https://github.com/ladamczyk-it/salus-it500",
   "issue_tracker": "https://github.com/ladamczyk-it/salus-it500/issues",
   "dependencies": ["climate", "water_heater"],

@@ -18,7 +18,6 @@ from homeassistant.const import (
 )
 
 from homeassistant.helpers.reload import async_setup_reload_service
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.components.climate import ClimateEntity
 from . import DOMAIN
 
@@ -39,7 +38,7 @@ async def async_setup_platform(hass, hass_config, async_add_entities, discovery_
         salus = hass.data[DOMAIN][deviceId]
 
         async_add_entities(
-            [SalusThermostat(hass, name, salus, deviceId)]
+            [SalusThermostat(hass, name, salus, deviceId)], True
         )
 
 
@@ -62,15 +61,6 @@ class SalusThermostat(ClimateEntity):
     @property
     def unique_id(self) -> str:
         return self._attr_unique_id
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._attr_unique_id)},
-            manufacturer="Salus",
-            model="IT500",
-            name=self.name,
-        )
 
     @property
     def supported_features(self):
