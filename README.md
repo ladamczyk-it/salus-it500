@@ -43,4 +43,31 @@ salus_it500:
 ```
 will give you thermostat entity only.
 
+### Thermostat attributes
+
+| Attribute | Meaning |
+|---|---|
+| `command_pending` | `true` when the thermostat is off in the cloud but the boiler relay is still on. The cloud stores an "off" as soon as it is written, but the gateway may not have applied it. If it stays `true`, the gateway has probably lost its cloud session (this happens after internet outages); power-cycle it. A warning is logged when it first appears. |
+| `last_report` | When the thermostat last reported its state (UTC). |
+| `online_since` | When the gateway last (re)connected to the cloud (UTC). |
+
+Example automation that re-sends "off" and sends a notification:
+```yaml
+triggers:
+  - trigger: state
+    entity_id: climate.salus_thermostat
+    attribute: command_pending
+    to: true
+    for: "00:15:00"
+actions:
+  - action: climate.set_hvac_mode
+    target:
+      entity_id: climate.salus_thermostat
+    data:
+      hvac_mode: "off"
+  - action: notify.notify
+    data:
+      message: Salus is off but the boiler is still heating. Power-cycle the gateway.
+```
+
 Enjoy your automation.

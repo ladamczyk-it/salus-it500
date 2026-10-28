@@ -59,6 +59,41 @@ def test_attributes_are_mapped_to_portal_keys(salus):
     assert data["HWonOffStatus"] == "1"
 
 
+def test_off_with_relay_on_is_reported_pending(salus):
+    client, fake = salus
+    fake.attrs.update({"A89": "1", "A87": "1"})  # cloud says off, device still heating
+
+    assert client._get_data()["CH1offPending"] == "1"
+
+
+@pytest.mark.parametrize("a89, a87", [("1", "0"), ("0", "1"), ("0", "0")])
+def test_consistent_states_are_not_pending(salus, a89, a87):
+    client, fake = salus
+    fake.attrs.update({"A89": a89, "A87": a87})
+
+    assert client._get_data()["CH1offPending"] == "0"
+
+
+def test_update_times_are_mapped_to_utc_iso(salus):
+    client, fake = salus
+    fake.times = {"A84": "1793198373462", "online": "1793197494220", "A85": "0"}
+
+    data = client._get_data()
+
+    assert data["lastReport"] == "2026-10-28T14:39:33+00:00"
+    assert data["onlineSince"] == "2026-10-28T14:24:54+00:00"
+
+
+def test_missing_update_times_are_none(salus):
+    client, fake = salus
+    fake.times = {"online": "0"}  # never-set attributes report updTime 0
+
+    data = client._get_data()
+
+    assert data["lastReport"] is None
+    assert data["onlineSince"] is None
+
+
 # --- data cache --------------------------------------------------------------
 
 def test_second_read_within_ttl_is_served_from_cache(salus):
