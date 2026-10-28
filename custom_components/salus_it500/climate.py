@@ -57,6 +57,9 @@ class SalusThermostat(ClimateEntity):
         self._frost = None
         self._status = None
         self._current_operation_mode = None
+        self._off_pending = False
+        self._last_report = None
+        self._online_since = None
     
     @property
     def unique_id(self) -> str:
@@ -107,6 +110,14 @@ class SalusThermostat(ClimateEntity):
             return HVACMode.OFF
         return curr_hvac_mode
         
+    @property
+    def extra_state_attributes(self):
+        return {
+            "command_pending": self._off_pending,
+            "last_report": self._last_report,
+            "online_since": self._online_since,
+        }
+
     @property
     def hvac_modes(self):
         return [HVACMode.HEAT, HVACMode.OFF]
@@ -162,6 +173,17 @@ class SalusThermostat(ClimateEntity):
                 self._current_operation_mode = STATE_OFF
             else:
                 self._current_operation_mode = STATE_ON
+
+            off_pending = data.get("CH1offPending") == "1"
+            if off_pending and not self._off_pending:
+                _LOGGER.warning(
+                    "Salus thermostat is off in the cloud but the boiler relay is still on; "
+                    "the gateway may not be receiving commands (last connect %s)",
+                    data.get("onlineSince"),
+                )
+            self._off_pending = off_pending
+            self._last_report = data.get("lastReport")
+            self._online_since = data.get("onlineSince")
 
             self._attr_available = True
         except Exception as e:

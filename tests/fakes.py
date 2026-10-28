@@ -1,10 +1,16 @@
 """A fake ``requests.Session`` for exercising the Salus client offline."""
 
 
-def attributes_xml(attrs):
-    """Build a getDeviceAttributesWithValues body from a name -> value dict."""
+def attributes_xml(attrs, times=None):
+    """Build a getDeviceAttributesWithValues body from a name -> value dict.
+
+    ``times`` optionally maps names to updTime values (epoch ms).
+    """
+    times = times or {}
     items = "".join(
-        f"<attrList><name>{name}</name><value>{value}</value></attrList>"
+        f"<attrList><name>{name}</name><value>{value}</value>"
+        + (f"<updTime>{times[name]}</updTime>" if name in times else "")
+        + "</attrList>"
         for name, value in attrs.items()
     )
     return (
@@ -54,6 +60,7 @@ class FakeSession:
         self.calls = []  # list of (method, url, payload-or-params)
         self.login_body = {"securityToken": "TOK123", "userId": 42}
         self.attrs = dict(self.DEFAULT_ATTRS)
+        self.times = {}
         self.values_queue = None
         self.set_status = 200
 
@@ -66,7 +73,7 @@ class FakeSession:
         if "getDeviceAttributesWithValues" in url:
             if self.values_queue is not None:
                 return self.values_queue.pop(0)
-            return FakeResponse(attributes_xml(self.attrs))
+            return FakeResponse(attributes_xml(self.attrs, self.times))
         if "setMultiDeviceAttributes2" in url:
             return FakeResponse(SET_OK, status_code=self.set_status)
         return FakeResponse("", status_code=404)

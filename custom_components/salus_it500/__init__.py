@@ -3,6 +3,7 @@ import time
 import hashlib
 import logging
 import threading
+from datetime import datetime, timezone
 import requests
 import xml.etree.ElementTree as ET
 import voluptuous as vol
@@ -19,7 +20,7 @@ from homeassistant.const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 
 DOMAIN = "salus_it500"
 PLATFORMS = "platforms"
@@ -151,21 +152,32 @@ class Salus:
         return r.text
 
     @staticmethod
-    def _attributes(text) -> dict:
+    def _attributes(text) -> tuple:
+        """Return (name -> value, name -> updTime in epoch ms) for every attribute."""
         attrs = {}
+        times = {}
         for element in ET.fromstring(text).iter():
             if element.tag.rpartition("}")[2] != "attrList":
                 continue
             name = element.findtext("name")
             if name:
                 attrs[name] = (element.findtext("value") or "").strip()
-        return attrs
+                times[name] = (element.findtext("updTime") or "").strip()
+        return attrs, times
 
     @staticmethod
-    def _to_portal(attrs) -> dict:
+    def _to_portal(attrs, times=None) -> dict:
         """Map Arrayent attributes to the salus-it500.com JSON keys the entities read."""
+        times = times or {}
+
         def temp(name):
             return str(int(attrs[name]) / 100)
+
+        def timestamp(name):
+            ms = times.get(name, "")
+            if not ms.isdigit() or ms == "0":
+                return None
+            return datetime.fromtimestamp(int(ms) / 1000, timezone.utc).isoformat(timespec="seconds")
 
         return {
             "CH1currentRoomTemp": temp("A84"),
@@ -173,8 +185,15 @@ class Salus:
             "frost": temp("S09"),
             "CH1heatOnOffStatus": attrs.get("A87", "0"),  # boiler relay
             "CH1heatOnOff": attrs.get("A89", "0"),        # 1 = zone switched off
+            # The cloud echoes a written A89 straight away, but A87 comes from
+            # the device. Off with the relay still on means the gateway has not
+            # applied the write; on 2026-10-28 that lasted 3.5 h after it lost
+            # its cloud session.
+            "CH1offPending": "1" if attrs.get("A89") == "1" and attrs.get("A87") == "1" else "0",
             "HWonOffStatus": attrs.get("C45", "0"),
             "online": attrs.get("online", ""),
+            "lastReport": timestamp("A84"),      # last device report (UTC)
+            "onlineSince": timestamp("online"),  # last gateway (re)connect (UTC)
         }
 
     def _to_attributes(self, data) -> dict:
@@ -218,8 +237,8 @@ class Salus:
                         "getDeviceAttributesWithValues",
                         {"devId": self._deviceId, "deviceTypeId": 1},
                     )
-                    attrs = self._attributes(text)
-                    data = self._to_portal(attrs)
+                    attrs, times = self._attributes(text)
+                    data = self._to_portal(attrs, times)
 
                     self._attrs = attrs
 
